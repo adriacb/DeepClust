@@ -1,15 +1,21 @@
 from utils import *
 from ann import Autoencoder
-from sklearn.manifold import TSNE
+from chem.Chem import ChemSpace, Molecule, Molecules
+
+import matplotlib.ticker as ticker
+import matplotlib.cm as cm
+import seaborn as sns
+
 from rdkit import Chem
 from rdkit.Chem import Descriptors
-import seaborn as sns
-from chem.Chem import ChemSpace, Molecule, Molecules
+
+from sklearn.manifold import TSNE
 from sklearn.datasets import make_blobs
 from sklearn.metrics import silhouette_samples, silhouette_score    
+
 from tqdm import tqdm 
-import matplotlib.cm as cm
-import umap
+
+
 
 def plot_history():
     f2 = open('history.pkl', 'rb+')
@@ -242,21 +248,23 @@ def chooseclusters(X, range_n_clusters):
 
 def apply_pipelinetsne(input, labels, normalinput):
 
-    
+    # LOAD THE MODEL
     autoencoder = keras.models.load_model('/home/adria/TFM/models/autoencoder3d.h5')
     encoder = keras.models.load_model('/home/adria/TFM/models/encoder3d.h5')     
 
+    # APPLY ENCODER TO THE DATA
     normalinput = normalinput.drop(["ID", "ROMol", "setName"], axis=1)
     predauto = encoder.predict(input)
 
-    #from sklearn.manifold import TSNE
-    
+    # APPLY TSNE 
     Xtsne = TSNE(n_components=2, perplexity=47.0).fit_transform(predauto)
-    #Xtsne = umap.UMAP(n_components=2).fit_transform(predauto)
+
     
     dftsne = pd.DataFrame(Xtsne)
     dftsne['ytrue'] = labels
 
+
+    # SELECT NUMBER OPTIMAL OF CLUSTERS
     np.random.seed(123)
     from yellowbrick.cluster import KElbowVisualizer
     model = KMeans()
@@ -272,8 +280,10 @@ def apply_pipelinetsne(input, labels, normalinput):
     visualizer.fit(Xtsne)        # Fit data to visualizer
     visualizer.show()        # Finalize and render figure
 
+    # PLOT THE RESULTS
     chooseclusters(Xtsne, [x for x in range(7,15)])
 
+    # APPLY KMEANS WITH THE K
     kmeans = KMeans(n_clusters=9, random_state=0).fit(Xtsne)
     from sklearn.metrics import accuracy_score
     acc = accuracy_score(labels, kmeans.labels_)
@@ -297,17 +307,6 @@ def apply_pipelinetsne(input, labels, normalinput):
     roc_display = RocCurveDisplay(fpr=fpr, tpr=tpr).plot()
 
     return predauto, kmeans.labels_, acc, pred, kmeans.cluster_centers_, dftsne, kmeans
-
-def plot_predictions(X, labels, pred, centroids):
-    plt.scatter(X[:, 0], X[:, 1], c=labels, s=50, cmap='viridis')
-    plt.scatter(centroids[:, 0], centroids[:, 1], c='black', s=200, alpha=0.5)
-    plt.show()
-    plt.close()
-
-    plt.scatter(X[:, 0], X[:, 1], c=pred, s=50, cmap='viridis')
-    plt.scatter(centroids[:, 0], centroids[:, 1], c='black', s=200, alpha=0.5)
-    plt.show()
-    plt.close()   
 
 
 def plot_predicionstsne(df):
@@ -373,18 +372,6 @@ def main():
     df_hiv = pickle.load(f6)
 
 
-    # X, kmeanslabels, acc, pred, centroids = apply_pipeline(hiv_in, hiv_labels) # Accuracy: 0.8949595156466554
-    # plot_predictions(X, hiv_labels, pred, centroids)
-    # print(pred)
-
-    # X, kmeanslabels, acc, pred, centroids = apply_pipeline(bbbp_in, bbbp_labels)
-    # plot_predictions(X, bbbp_labels, pred, centroids)
-    # print(pred)
-
-    # X, kmeanslabels, acc, pred, centroids, df = apply_pipelinetsne(hiv_in, hiv_labels, df_hiv) # Accuracy: 0.8949595156466554
-    # plot_predicionstsne(df)
-    # compare_fps(df_hiv, pred)
-    # # print(pred)
 
     X, kmeanslabels, acc, pred, centroids, df, model = apply_pipelinetsne(bbbp_in,  bbbp_labels, df_bbbp)
     plot_predicionstsne(df)
@@ -446,11 +433,7 @@ def compute_distances_between_clusters(df, pred):
 
     distances = tanim_distances(mols_clusters, mols_clusters)
    
-    # df_cm = pd.DataFrame(distances, index = pred,
-    #                 columns = pred)
-    
-    # del distances
-    # del mols_clusters
+
     clust_labels = dict()
     for clust in pred:
         if clust not in clust_labels:
@@ -466,7 +449,7 @@ def compute_distances_between_clusters(df, pred):
         for lab in arr:
             labelssss.append(lab)
 
-    import matplotlib.ticker as ticker
+    
     g = sns.heatmap(distances, xticklabels=clust_labels, yticklabels=clust_labels)
     g.yaxis.set_major_locator(ticker.MultipleLocator(2039//9))
     g.yaxis.set_major_formatter(ticker.ScalarFormatter())
@@ -524,6 +507,3 @@ if __name__ == '__main__':
     #main()
     #main_distances()
     draw_grid_by_clust()
-    # TO DO:
-    #   x optimal number of clusters
-    #   x Test with morgan fps
