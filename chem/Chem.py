@@ -1,4 +1,4 @@
-from utils import *
+from ..utils import *
 import logging
 
 logger = Logger(filename='molecule.warnings.log', level='WARNING')
@@ -18,7 +18,7 @@ class Molecule:
         except:
             logger.warning("Can't get _Name property from Chem.rdchem.Mol")
         else:
-            self.name = str(uuid.uuid5())
+            self.name = str(uuid.uuid4())
 
 
     def calcProp(self):
